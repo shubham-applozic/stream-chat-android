@@ -1,7 +1,9 @@
 package io.getstream.chat.docs.java;
 
-import android.view.Gravity;
+import android.util.Log;
 import android.view.ViewGroup;
+
+import android.view.Gravity;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -10,13 +12,24 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.getstream.sdk.chat.ChatUI;
+import com.getstream.sdk.chat.adapter.MessageListItem;
+import com.getstream.sdk.chat.utils.DateFormatter;
+
+import com.getstream.sdk.chat.view.messages.MessageListItemWrapper;
 import com.getstream.sdk.chat.viewmodel.MessageInputViewModel;
+import com.getstream.sdk.chat.viewmodel.messages.MessageListViewModel;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.threeten.bp.LocalDateTime;
+import org.threeten.bp.LocalTime;
+import org.threeten.bp.format.DateTimeFormatter;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
+import io.getstream.chat.android.client.models.Message;
 import io.getstream.chat.android.client.models.Filters;
 import io.getstream.chat.android.client.utils.FilterObject;
 import io.getstream.chat.android.livedata.ChatDomain;
@@ -32,11 +45,16 @@ import io.getstream.chat.android.ui.channel.list.viewmodel.ChannelListViewModelB
 import io.getstream.chat.android.ui.channel.list.viewmodel.factory.ChannelListViewModelFactory;
 import io.getstream.chat.android.ui.gallery.AttachmentGalleryDestination;
 import io.getstream.chat.android.ui.gallery.AttachmentGalleryItem;
+import io.getstream.chat.android.ui.message.input.viewmodel.MessageInputViewModelBinding;
+import io.getstream.chat.android.ui.message.list.MessageListView;
+import io.getstream.chat.android.ui.message.list.adapter.BaseMessageItemViewHolder;
+import io.getstream.chat.android.ui.message.list.adapter.MessageListItemViewHolderFactory;
 import io.getstream.chat.android.ui.message.input.MessageInputView;
-import io.getstream.chat.android.ui.message.input.MessageInputViewModelBinding;
 import io.getstream.chat.android.ui.message.list.header.MessageListHeaderView;
 import io.getstream.chat.android.ui.message.list.header.viewmodel.MessageListHeaderViewModel;
 import io.getstream.chat.android.ui.message.list.header.viewmodel.MessageListHeaderViewModelBinding;
+import io.getstream.chat.android.ui.message.list.viewmodel.MessageListViewModelBinding;
+import io.getstream.chat.android.ui.message.list.viewmodel.factory.MessageListViewModelFactory;
 import io.getstream.chat.android.ui.search.SearchInputView;
 import io.getstream.chat.android.ui.search.list.SearchResultListView;
 import io.getstream.chat.android.ui.search.list.viewmodel.SearchViewModel;
@@ -174,11 +192,29 @@ public class Android {
 
         public void bindingWithViewModel() {
             // Get ViewModel
+            MessageListViewModelFactory factory = new MessageListViewModelFactory("channelType:channelId");
             MessageInputViewModel viewModel =
-                    new ViewModelProvider(this).get(MessageInputViewModel.class);
+                    new ViewModelProvider(this, factory).get(MessageInputViewModel.class);
             // Bind it with MessageInputView
             MessageInputViewModelBinding
                     .bind(viewModel, messageInputView, getViewLifecycleOwner());
+        }
+
+        public void handlingUserInteractions() {
+            messageInputView.setOnSendButtonClickListener(() -> {
+                // Handle send button click
+            });
+            messageInputView.setTypingListener(new MessageInputView.TypingListener() {
+                @Override
+                public void onKeystroke() {
+                    // Handle send button click
+                }
+
+                @Override
+                public void onStopTyping() {
+                    // Handle stop typing case
+                }
+            });
         }
     }
 
@@ -190,11 +226,21 @@ public class Android {
 
         public void bindingWithViewModel() {
             // Get ViewModel
+            MessageListViewModelFactory factory = new MessageListViewModelFactory("channelType:channelId");
             MessageListHeaderViewModel viewModel =
-                    new ViewModelProvider(this).get(MessageListHeaderViewModel.class);
+                    new ViewModelProvider(this, factory).get(MessageListHeaderViewModel.class);
             // Bind it with MessageListHeaderView
             MessageListHeaderViewModelBinding
                     .bind(viewModel, messageListHeaderView, getViewLifecycleOwner());
+        }
+
+        public void handlingUserInteractions() {
+            messageListHeaderView.setAvatarClickListener(() -> {
+                // Handle avatar click
+            });
+            messageListHeaderView.setTitleClickListener(() -> {
+                // Handle title click
+            });
         }
     }
 
@@ -267,6 +313,138 @@ public class Android {
             destination.setData(attachmentGalleryItems, 0);
 
             ChatUI.instance().getNavigator().navigate(destination);
+        }
+    }
+
+    /**
+     * @see <a href="https://getstream.io/nessy/docs/chat_docs/android_chat_ux/message_list_view_new">Message List View</a>
+     */
+    class MessageListViewDocs extends Fragment {
+        MessageListView messageListView;
+        private final MessageListViewModel viewModel =
+                new ViewModelProvider(this).get(MessageListViewModel.class);
+
+        public void emptyState() {
+            messageListView.showEmptyStateView();
+        }
+
+        public void loadingView() {
+            //When loading information, show loading view
+            messageListView.showLoadingView();
+        }
+
+        public void viewHolderFactory() {
+            MessageListItemViewHolderFactory factory =
+                    new MessageListItemViewHolderFactoryExtended();
+            messageListView.setMessageViewHolderFactory(factory);
+        }
+
+        public void messageClick() {
+            messageListView.setMessageClickListener(message -> {
+                // Handle message click
+            });
+        }
+
+        public void messageLongClick() {
+            messageListView.setMessageLongClickListener(message -> {
+                // Handle message long click
+            });
+        }
+
+        public void dateFormatter() {
+            messageListView.setMessageDateFormatter(new DateFormatter() {
+                @NotNull
+                @Override
+                public String formatDate(@Nullable LocalDateTime localDateTime) {
+                    return DateTimeFormatter.ofPattern("dd/MM/yyyy").format(localDateTime);
+                }
+
+                @NotNull
+                @Override
+                public String formatTime(@Nullable LocalTime localTime) {
+                    return DateTimeFormatter.ofPattern("HH:mm").format(localTime);
+                }
+            });
+        }
+
+        public void customMessagesFilter() {
+            messageListView.setMessageListItemPredicate(messageList -> {
+                // Boolean logic here
+                return true;
+            });
+        }
+
+        public void setNewMessageBehaviour() {
+            messageListView.setNewMessagesBehaviour(
+                    MessageListView.NewMessagesBehaviour.COUNT_UPDATE
+            );
+        }
+
+        public void setEndRegionReachedHandler() {
+            messageListView.setEndRegionReachedHandler(() -> {
+                // Handle pagination and include new logic
+
+                // Option to log the event and use the viewModel
+                viewModel.onEvent(MessageListViewModel.Event.EndRegionReached.INSTANCE);
+                Log.e("LogTag", "On load more");
+            });
+        }
+
+        public void bindWithViewModel() {
+            // Get ViewModel
+            MessageListViewModelFactory factory = new MessageListViewModelFactory("channelType:channelId");
+            MessageListViewModel viewModel =
+                    new ViewModelProvider(this, factory).get(MessageListViewModel.class);
+
+            // Bind it with MessageListView
+            MessageListViewModelBinding.bind(viewModel, messageListView, getViewLifecycleOwner());
+        }
+
+        public void handlingUserInteractions() {
+            messageListView.setMessageClickListener((message) -> {
+                // Handle click on message
+            });
+            messageListView.setMessageLongClickListener((message) -> {
+                // Handle long click on message
+            });
+            messageListView.setAttachmentClickListener((message, attachment) -> {
+                // Handle click on attachment
+            });
+        }
+
+        public void handlers() {
+            messageListView.setMessageEditHandler((message) -> {
+                // Handle edit message
+            });
+            messageListView.setMessageDeleteHandler((message) -> {
+                // Handle delete message
+            });
+            messageListView.setAttachmentDownloadHandler((attachment) -> {
+                // Handle attachment download
+            });
+        }
+
+        public void displayNewMessage() {
+            Message message = new Message();
+            message.setText("Lorem ipsum dolor");
+            MessageListItem.MessageItem messageItem = new MessageListItem.MessageItem(
+                    message, new ArrayList<>(), true, new ArrayList<>(), false, false
+            );
+
+            MessageListItemWrapper messageWrapper = new MessageListItemWrapper(
+                    Collections.singletonList(messageItem), false, false, false
+            );
+
+            messageListView.displayNewMessages(messageWrapper);
+        }
+
+        class MessageListItemViewHolderFactoryExtended extends MessageListItemViewHolderFactory {
+            @NotNull
+            @Override
+            public BaseMessageItemViewHolder<? extends MessageListItem> createViewHolder(@NotNull ViewGroup parentView, int viewType) {
+                // Create a new type of view holder here, if needed
+                return super.createViewHolder(parentView, viewType);
+            }
         }
     }
 }
